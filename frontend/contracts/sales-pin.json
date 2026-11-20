@@ -1,0 +1,8 @@
+{
+  "contract_version": "0.9.6",
+  "contract_sha256": "04f43a423613a8a0dac8ffddc44bf9df771cf6dc56f69333ef7e237609363dc0",
+  "backend_review_target_commit": "fd3307b4ba06a03f89cfcca18caf9db8209ace09",
+  "backend_commit_provenance": "Verified local commit object fd3307b4 (final 0.9.6); contracts/openapi.yaml at fd3307b4 sha256 04f43a42…3dc0 matches the brief; VPS provenance is checksum-based, not an inferred git revision",
+  "frontend_commit": null,
+  "frontend_source_kind": "plain-source-tree"
+}

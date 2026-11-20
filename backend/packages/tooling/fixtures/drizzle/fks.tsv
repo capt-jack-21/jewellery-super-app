@@ -1,0 +1,3 @@
+platform	job	job_mapping_profile_fk	tenant_id,mapping_profile_id,kind	platform	profile	tenant_id,id,kind
+platform	job	idempotency_key_tenant_id_fkey	tenant_id	platform	profile	tenant_id
+sales	idempotency_key	idempotency_key_tenant_id_fkey	job_id,tenant_id	platform	job	id,tenant_id

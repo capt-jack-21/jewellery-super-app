@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+.vite/
+.env
+.env.*
+*.pem
+*.key
+!.env.example
+!**/.env.example
+
+# demo logins hold real passwords: never commit
+demo-logins*.txt
+*logins*.txt
+devops/local/last-integration.log

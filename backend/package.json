@@ -1,0 +1,40 @@
+{
+  "name": "jewellery-saas-backend",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "pnpm run lint:guards && pnpm run lint:deps && pnpm run lint:openapi && turbo run lint",
+    "lint:guards": "node packages/tooling/guards.mjs",
+    "lint:deps": "depcruise --config .dependency-cruiser.cjs apps packages",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "pnpm run build && bash scripts/test-db.sh && vitest run --config vitest.integration.config.ts",
+    "db:pull": "bash scripts/db-pull.sh",
+    "lint:openapi": "redocly lint contracts/openapi.yaml"
+  },
+  "devDependencies": {
+    "@jw/api": "workspace:^",
+    "@jw/db": "workspace:^",
+    "@jw/mod-inventory": "workspace:^",
+    "@jw/mod-orders": "workspace:^",
+    "@jw/mod-platform": "workspace:^",
+    "@jw/mod-reports": "workspace:^",
+    "@jw/mod-sales": "workspace:^",
+    "@jw/money": "workspace:^",
+    "@jw/worker": "workspace:^",
+    "@redocly/cli": "^2.66.0",
+    "@types/node": "20",
+    "@types/pg": "^8.23.1",
+    "dependency-cruiser": "^16.10.4",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.4",
+    "exceljs": "4.4.0",
+    "pg": "^8.23.1",
+    "pg-boss": "10",
+    "reflect-metadata": "^0.2.2",
+    "turbo": "^2.11.9",
+    "typescript": "5",
+    "vitest": "2"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "sales.print.receiptAction": "Print receipt",
+  "sales.print.receiptBalanceAtIssue": "Balance immediately after this receipt: {amount}",
+  "sales.print.receiptNoCollection": "Payment reversal only — no money collected.",
+  "sales.print.receiptReversedAmount": "Reversed amount",
+  "sales.print.stamp.REVERSAL": "Payment reversal",
+  "sales.print.stamp.REVERSED": "Payment reversed"
+}

@@ -1,0 +1,25 @@
+/* Colour palette supplied by Adithya on 2026-11-17. Reference only: NOT applied anywhere in the app yet.
+   When we do the front end work it maps onto frontend/src/design-tokens/defaults.ts (the only place colour literals may live). */
+:root {
+  /* Brand colours */
+  --color-primary: #00CCCC;
+  --color-primary-hover: #00B3B3;
+  --color-primary-active: #009999;
+  --color-primary-disabled: #006666;
+
+  /* Background colours */
+  --color-background: #000028;
+  --color-surface: #242526;
+  --color-surface-elevated: #40405E;
+  --color-white: #FFFFFF;
+
+  /* Text colours */
+  --color-text: #FFFFFF;
+  --color-text-muted: #B7C0C7;
+
+  /* Status colours */
+  --color-success: #52C41A;
+  --color-warning: #FAAD14;
+  --color-error: #FF4D4F;
+  --color-info: #00CCCC;
+}

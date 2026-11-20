@@ -1,0 +1,8 @@
+{
+  "sales.print.receiptAction": "ரசீதை அச்சிடு",
+  "sales.print.receiptBalanceAtIssue": "இந்த ரசீதுக்குப் பின் உடனடியாக இருந்த நிலுவை: {amount}",
+  "sales.print.receiptNoCollection": "பணம் பெறுதல் ரத்து மட்டும் — பணம் பெறப்படவில்லை.",
+  "sales.print.receiptReversedAmount": "ரத்து செய்யப்பட்ட தொகை",
+  "sales.print.stamp.REVERSAL": "பணம் பெறுதல் ரத்து",
+  "sales.print.stamp.REVERSED": "பணம் பெறுதல் ரத்து செய்யப்பட்டது"
+}

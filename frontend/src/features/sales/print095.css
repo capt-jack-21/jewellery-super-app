@@ -1,0 +1,27 @@
+/* Print-shell isolation is not template content: print only the selected logged payload. */
+@media print {
+  [data-testid='print-panel'][data-print-active='false'] { display: none !important; }
+}
+
+/*
+ * B-1 (0.9.5 printfix): the receipt preview is portalled to <body>, after #root. While it is open and no panel inside #root
+ * holds the logged print, #root and every other body child are removed from print layout, so they cannot open a default
+ * (US Letter) page before the receipt. The receipt root itself (.sales-doc[data-paper]) selects its named @page in print.v1.css.
+ */
+@media print {
+  body:has(> [data-testid='receipt-print-preview']):not(:has(#root [data-testid='print-panel'][data-print-active='true'])) > :not([data-testid='receipt-print-preview']) { display: none !important; }
+  body > [data-testid='receipt-print-preview'] { border: 0 !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+  /* An invoice / estimate / credit note printed while a receipt preview is still open: the preview must not add a page. */
+  body:has(#root [data-testid='print-panel'][data-print-active='true']) > [data-testid='receipt-print-preview'] { display: none !important; }
+}
+
+/*
+ * Next release (receipt preview opens as a modal Dialog): on screen the portalled preview is a fixed, scrollable overlay
+ * (components/ui/dialog.tsx) so it opens in view. In print it must lay out exactly like the old static <body> child, so the B-1
+ * isolation above still yields one page per receipt: no fixed positioning (a fixed box repeats on every printed page), no
+ * scroll clipping, and no dialog panel chrome. Nothing here selects a page; the named @page rules stay in print.v1.css.
+ */
+@media print {
+  body > [data-testid='receipt-print-preview'] { position: static !important; inset: auto !important; overflow: visible !important; z-index: auto !important; }
+  body > [data-testid='receipt-print-preview'] > [role='dialog'] { position: static !important; max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
+}

@@ -1,0 +1,2 @@
+{ "name": "@jw/web", "version": "0.0.0", "private": true,
+  "scripts": { "build": "echo 'web: static placeholder (frontend not in M0 scope)'", "typecheck": "true", "lint": "true", "test": "true" } }

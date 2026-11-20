@@ -1,0 +1,65 @@
+[
+  {
+    "body_key": "tpl/platform/invoice.hbs",
+    "template_version": 1,
+    "doc_type": "invoice",
+    "renderer": "sales-gst-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  },
+  {
+    "body_key": "tpl/platform/receipt.hbs",
+    "template_version": 1,
+    "doc_type": "receipt",
+    "renderer": "receipt-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  },
+  {
+    "body_key": "tpl/platform/estimate.hbs",
+    "template_version": 1,
+    "doc_type": "estimate",
+    "renderer": "sales-gst-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  },
+  {
+    "body_key": "tpl/t1/invoice-v1.hbs",
+    "template_version": 1,
+    "doc_type": "invoice",
+    "renderer": "sales-gst-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  },
+  {
+    "body_key": "tpl/t1/invoice-v2.hbs",
+    "template_version": 2,
+    "doc_type": "invoice",
+    "renderer": "sales-gst-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  },
+  {
+    "body_key": "tpl/test/credit-note.hbs",
+    "template_version": 1,
+    "doc_type": "credit_note",
+    "renderer": "sales-gst-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  },
+  {
+    "body_key": "tpl/platform/credit_note.hbs",
+    "template_version": 1,
+    "doc_type": "credit_note",
+    "renderer": "sales-gst-v1",
+    "layout": "standard",
+    "heading_text": "",
+    "footer_text": ""
+  }
+]

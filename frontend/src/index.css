@@ -1,0 +1,18 @@
+@import './features/sales/print095.css';
+@import './features/sales/print.v1.css';
+@import '@fontsource/noto-sans/400.css';
+@import '@fontsource/noto-sans/600.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+html { font-size: var(--base-font-size, 14px); }
+@media print { header, nav, button { display: none !important; } }
+/* Rate card (doc_type rate_card): its own header prints; brand colours kept. */
+@media print {
+  .rate-card header { display: flex !important; }
+  .rate-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Rate cards use their OWN named page; no generic A4 rule can leak into Sales. */
+@page rate-card { size: A4; margin: 12mm; }
+.rate-card { page: rate-card; }

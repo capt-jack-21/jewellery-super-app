@@ -1,0 +1,523 @@
+applying migrations/010_platform.sql
+applying migrations/015_branding.sql
+applying migrations/020_billing.sql
+applying migrations/025_platform_functions.sql
+applying migrations/030_notifications.sql
+applying migrations/035_pgboss.sql
+applying migrations/040_masters.sql
+applying migrations/045_platform_defaults.sql
+applying migrations/050_rates.sql
+applying migrations/060_hr.sql
+applying migrations/070_accounts.sql
+applying migrations/080_inventory.sql
+applying migrations/090_approvals.sql
+applying migrations/100_sales.sql
+applying migrations/110_orders.sql
+applying migrations/120_purchases.sql
+applying migrations/130_refinery.sql
+applying migrations/140_reports.sql
+applying migrations/900_security.sql
+ALL MIGRATIONS APPLIED
+--- RLS / tenant isolation
+ PASS  tenant1 sees its 2 tags
+
+ PASS  tenant1 sees only its branch
+
+ PASS  cannot write a row for another tenant  -> new row violates row-level security policy for table "metal"
+
+ PASS  tenant2 sees none of tenant1 tags
+
+ PASS  tenant2 sees only its own metal
+
+ PASS  no tenant set => no rows
+
+--- constraints
+ PASS  HUID mandatory (CHECK) unless hallmark_exempt  -> new row for relation "tag" violates check constraint "tag_check1"
+
+ PASS  HUID unique per tenant  -> duplicate key value violates unique constraint "tag_huid_uq"
+
+ PASS  net weight cannot exceed gross  -> new row for relation "tag" violates check constraint "tag_check"
+
+ PASS  (e) lowercase HUID rejected (app must upper-case)  -> new row for relation "tag" violates check constraint "tag_huid_check"
+
+ PASS  (e) 5-char HUID rejected  -> new row for relation "tag" violates check constraint "tag_huid_check"
+
+ PASS  (e) non-alphanumeric HUID rejected  -> new row for relation "tag" violates check constraint "tag_huid_check"
+
+--- module ownership by grants
+ PASS  (b) app_rw cannot write orders directly  -> permission denied for table repair
+
+ PASS  (b) app_rw cannot write purchases directly  -> permission denied for table purchase
+
+ PASS  (b) app_rw cannot write refinery directly  -> permission denied for table bag
+
+ PASS  (b) orders_writer can create a repair (numbered from non-gapless counter)
+
+ PASS  (b) orders_writer cannot change stock  -> permission denied for table stock_ledger
+
+ PASS  (b) orders_writer cannot write invoices  -> permission denied for table invoice
+
+ PASS  (b) purchases_writer cannot change tag status  -> permission denied for table tag
+
+ PASS  (b) refinery_writer cannot change stock  -> permission denied for table stock_ledger
+
+--- (f) only tax invoices & credit notes are gapless
+ PASS  (f) estimates cannot use the gapless series table  -> new row for relation "doc_series" violates check constraint "doc_series_doc_type_check"
+
+ PASS  (f) estimate counter may skip (gaps allowed)
+
+ PASS  (f) tax invoices cannot use the non-gapless counter  -> new row for relation "doc_counter" violates check constraint "doc_counter_doc_type_check"
+
+ PASS  app_rw cannot INSERT invoice  -> permission denied for table invoice
+
+ PASS  app_rw cannot INSERT stock_ledger  -> permission denied for table stock_ledger
+
+ PASS  app_rw cannot change tag status (column grant)  -> permission denied for table tag
+
+ PASS  app_rw can edit descriptive tag columns
+
+ PASS  app_rw cannot INSERT ledger_entry  -> permission denied for table ledger_entry
+
+--- issue invoices via sales module role (app computes values)
+ PASS  two invoices numbered 1,2
+
+ PASS  tag sold via inventory role in same txn
+
+ PASS  per-component tax snapshot rows stored
+
+--- INV-1 counter guardrails
+ PASS  allocating a number without issuing is rejected (no gaps)  -> invoice number 3 allocated but not used (would create a gap, INV-1)
+
+ PASS  counter rewind rejected  -> series counter may only advance by 1 (INV-1)
+
+ PASS  counter skip rejected  -> series counter may only advance by 1 (INV-1)
+
+ PASS  (d) client-supplied invoice number 99 rejected  -> doc_seq 99 is not the number allocated from sales.doc_series (INV-1)
+
+ PASS  (d) client-supplied "next" number without allocating from the counter rejected  -> doc_seq 3 is not the number allocated from sales.doc_series (INV-1)
+
+ PASS  cannot add lines to an already-issued invoice  -> rows can only be added to sales.invoice_line in the transaction that issued the parent (INV-4)
+
+ PASS  sales role cannot edit invoice amounts (column grant)  -> permission denied for table invoice
+
+ PASS  cancel without credit note rejected  -> invoice CBE/INV/2026-27/000001 can only be cancelled by a cancellation credit note (INV-4)
+
+ PASS  sales role cannot DELETE invoice  -> permission denied for table invoice
+
+ PASS  app_rw cannot DELETE invoice  -> permission denied for table invoice
+
+ PASS  app_rw cannot TRUNCATE invoice  -> permission denied for table invoice
+
+--- cancellation = credit note (own series) + status change, one transaction
+ PASS  invoice cancelled via credit note, row retained
+
+ PASS  INV-5: credit-note trigger wrote cancellation alert to outbox (app inserted none)
+
+ PASS  un-cancel rejected  -> cancelled invoice CBE/INV/2026-27/000001 cannot change status
+
+ PASS  credit note balance cannot increase  -> credit note balance can only decrease
+
+--- INV-6 reconciliation, INV-3 audit
+ PASS  series_gaps returns zero rows
+
+ PASS  invoice inserts/updates audited
+
+ PASS  hash chain verifies
+
+ PASS  app_rw cannot UPDATE audit  -> permission denied for table audit_event
+
+ PASS  app_rw cannot DELETE audit  -> permission denied for table audit_event
+
+ PASS  app_rw cannot forge audit rows  -> permission denied for table audit_event
+
+--- GST configuration
+ PASS  tenant reads platform defaults + own rules
+
+ PASS  overlapping effective period rejected  -> conflicting key value violates exclusion constraint "tax_rule_coalesce_component_coalesce1_hsn_sac_daterange_excl"
+
+ PASS  CGST+SGST must equal rate  -> new row for relation "tax_rule" violates check constraint "tax_rule_check1"
+
+ PASS  tenant cannot create platform rule  -> new row violates row-level security policy for table "tax_rule"
+
+ PASS  rate change = close old rule + open new rule (no overlap)
+
+ PASS  effective-dated lookup picks the 2027 tenant rule
+
+ PASS  tenant2 cannot see tenant1 tax rules
+
+--- branding data + RLS (resolution itself is app logic; reference query below)
+ PASS  tenant->partner->platform resolution over visible rows
+
+ PASS  tenant cannot edit partner/platform theme
+
+ PASS  direct tenant sees only platform theme
+
+ PASS  tenant2 sees no partner sender config
+
+ PASS  partner session sees only its tenant (directory)
+
+ PASS  partner sees its tenants' themes
+
+ PASS  verified custom domain resolvable pre-auth (no tenant set)
+
+ PASS  two active templates per type rejected  -> duplicate key value violates unique constraint "print_template_one_active"
+
+--- N16/N19 tax rule immutability, no back-dating, delete only if unreferenced
+ PASS  DB marks rule as used on first invoice line
+
+ PASS  N16 back-dated effective_from rejected  -> tax rule effective_from 2026-10-23 is in the past (no back-dating; today is 2026-10-24)
+
+ PASS  N16 referenced rule: rate change rejected  -> tax rule MAKING_COMPOSITE is referenced by issued invoices: only effective_to NULL -> date >= 2026-10-24 is allowed
+
+ PASS  N19 referenced rule: effective_to in the past rejected  -> tax rule MAKING_COMPOSITE is referenced by issued invoices: only effective_to NULL -> date >= 2026-10-24 is allowed
+
+ PASS  N19 referenced rule: moving an already-set effective_to rejected  -> tax rule GOLD_JEWELLERY is referenced by issued invoices: only effective_to NULL -> date >= 2026-10-24 is allowed
+
+ PASS  N19 referenced rule: effective_to NULL -> future date allowed
+
+ PASS  N16 referenced rule cannot be deleted (FK RESTRICT)  -> update or delete on table "tax_rule" violates foreign key constraint "invoice_line_tax_tax_rule_id_fkey" on table "invoice_line_tax"
+
+ PASS  N16 unreferenced rule can be deleted
+
+--- per-tenant sales policy: platform defaults + tenant override
+ PASS  platform default policy seeded (composite, stated purity, purchase voucher, store credit, 15 days)
+
+ PASS  platform default: making composite 3% with metal
+
+ PASS  tenant without override reads platform default
+
+ PASS  tenant override wins (30 days, separate making, 24K basis)
+
+ PASS  separate making needs a rule code; overlapping tenant policy rejected  -> new row for relation "sales_policy" violates check constraint "sales_policy_check2"
+
+ PASS  tenant cannot change platform default policy
+
+ PASS  tenant2 still on platform default, cannot see tenant1 override
+
+ PASS  N1 gst_config.rounding_level defaults to invoice
+
+--- redemption of advance + credit note in one invoice transaction (no DB function)
+ PASS  app_rw cannot change advance balance (column grant)  -> permission denied for table advance
+
+ PASS  over-redeeming an advance (beyond its payment) rejected  -> advance ADV-1 redemption 3001.00 exceeds advance payments 3000.00 on the invoice issued in this transaction
+
+ PASS  over-redeeming store credit rejected  -> credit note CBE/CN/2026-27/000002 redemption exceeds the credit_note payments of the invoice issued in this transaction
+
+ PASS  advance 10000->7000 and store credit 5000->0 redeemed in one invoice tx
+
+ PASS  doc_date forced to server IST date (client sent 2020-01-01)
+
+ PASS  redemption outside an invoice tx rejected  -> advance ADV-1 redemption 1.00 exceeds advance payments 0 on the invoice issued in this transaction
+
+ PASS  store credit cannot go below 0  -> credit note CBE/CN/2026-27/000002 redemption exceeds the credit_note payments of the invoice issued in this transaction
+
+ PASS  duplicate idempotency key rejected  -> duplicate key value violates unique constraint "idempotency_key_pkey"
+
+--- N8 outbox ref fields: credit-note alert written only by trigger, one per note
+ PASS  N8 trigger fills ref_type=credit_note, ref_id, alert_type (one row)
+
+ PASS  app cannot write a cancellation alert without alert_type (CHECK)  -> new row for relation "outbox" violates check constraint "outbox_check2"
+
+ PASS  N8 app cannot set alert_type (column grant)  -> permission denied for table outbox
+
+ PASS  N8 app may set ref_type/ref_id on ordinary messages
+
+ PASS  N8 ref_type without ref_id rejected  -> new row for relation "outbox" violates check constraint "outbox_check"
+
+ PASS  N8 partial unique index (tenant_id, ref_type, ref_id, alert_type) present
+
+--- N10 issued invoice immutable except guarded issued -> cancelled
+psql:tests/run_tests.sql:337: NOTICE:  PASS  N10 all 32 non-status invoice columns are not updatable by the sales role
+ PASS  N10 cancelled invoice frozen (even IRN)  -> cancelled invoice CBE/INV/2026-27/000001 is frozen
+
+ PASS  N10 IRN stamped once only  -> IRN of invoice CBE/INV/2026-27/000002 is already stamped
+
+ PASS  N10 issued -> other status rejected  -> new row for relation "invoice" violates check constraint "invoice_status_check"
+
+--- weights numeric(12,3), HUID check on tags + invoice lines, languages, onboarding
+ PASS  every weight column / weight_g domain is numeric(12,3)
+
+ PASS  12,3 weight stored exactly (123456789.123 g)
+
+ PASS  HUID uppercase CHECK present on inventory.tag AND sales.invoice_line
+
+ PASS  tenant default_language defaults to en
+
+ PASS  user language override (ta) over tenant default
+
+ PASS  invalid language code rejected  -> new row for relation "app_user" violates check constraint "app_user_language_check"
+
+ PASS  print template language ta + tamil numerals
+
+ PASS  unknown numeral system rejected  -> new row for relation "print_template" violates check constraint "print_template_numeral_system_check"
+
+ PASS  onboarding step unique per tenant  -> duplicate key value violates unique constraint "onboarding_progress_tenant_id_step_key"
+
+ PASS  completed step needs completed_at  -> new row for relation "onboarding_progress" violates check constraint "onboarding_progress_check"
+
+ PASS  onboarding progress isolated by RLS
+
+--- settings: platform defaults (N14 PAN, INV-5 alert thresholds, P11 session timeout) and tenant override
+ PASS  N14 PAN threshold default 200000.00
+
+ PASS  INV-5 defaults: alert every cancellation, escalate above 5/branch/day
+
+ PASS  P11 session timeout default 30 min
+
+ PASS  tenant override wins (PAN 1.5L, escalate above 3)
+
+ PASS  branch override wins over tenant (5 min)
+
+ PASS  unknown setting key rejected  -> insert or update on table "setting" violates foreign key constraint "setting_key_fkey"
+
+ PASS  wrong value type rejected  -> setting auth.session_timeout_minutes expects integer, got "ten"
+
+ PASS  integer setting rejects 2.5  -> setting alerts.cancellation.escalate_per_branch_per_day expects integer, got 2.5
+
+ PASS  tenant cannot change platform defaults  -> permission denied for table setting_default
+
+ PASS  removing the override falls back to the platform default
+
+ PASS  tenant2 unaffected by tenant1 override
+
+--- P5/P7 system roles only (custom roles deferred)
+ PASS  P5 four preset roles
+
+ PASS  P7 owner holds every permission
+
+ PASS  P7 cashier/salesperson cannot cancel, discount, edit rates, see reports
+
+ PASS  P6 custom role rejected (deferred)  -> insert or update on table "role" violates foreign key constraint "role_system_role_code_fkey"
+
+ PASS  role must map to a system role  -> null value in column "system_role_code" of relation "role" violates not-null constraint
+
+ PASS  tenant cannot change preset permissions  -> permission denied for table system_role_permission
+
+--- P8 password login identity, P9 OTP
+ PASS  P8 username unique per tenant  -> duplicate key value violates unique constraint "app_user_username_uq"
+
+ PASS  P8 username must be lowercase  -> new row for relation "app_user" violates check constraint "app_user_username_check"
+
+ PASS  P8 user needs username or mobile  -> new row for relation "app_user" violates check constraint "app_user_check"
+
+ PASS  P9 OTP validity capped at 15 min  -> new row for relation "otp_challenge" violates check constraint "otp_challenge_check"
+
+ PASS  P9 OTP max 5 attempts  -> new row for relation "otp_challenge" violates check constraint "otp_challenge_attempts_check"
+
+ PASS  P9 OTP channel sms/whatsapp only  -> new row for relation "otp_challenge" violates check constraint "otp_challenge_channel_check"
+
+--- P10 counter devices, sessions
+ PASS  P10 approval needs approver + time  -> new row for relation "device" violates check constraint "device_check"
+
+ PASS  P10 same device fingerprint cannot register twice  -> duplicate key value violates unique constraint "device_tenant_id_fingerprint_hash_key"
+
+ PASS  P10 revoking a lost device logs out its 2 live sessions
+
+ PASS  session device must be registered  -> insert or update on table "user_session" violates foreign key constraint "user_session_tenant_id_device_id_fkey"
+
+--- P15 onboarding wizard, P17 domains/HTTPS, P21 imports
+ PASS  P15 exactly the 10 agreed wizard steps, in order
+
+ PASS  P15 billing-unlock steps flagged; no devices step
+
+ PASS  P15 v_billing_unlocked: locked, lists the 4 missing required steps
+
+ PASS  P15 billing unlocked once the 5 required steps are complete (optional steps skipped/pending)
+
+ PASS  P15 view shows only the caller's tenant (RLS)
+
+ PASS  P15 unknown wizard step rejected  -> insert or update on table "onboarding_progress" violates foreign key constraint "onboarding_progress_step_fkey"
+
+ PASS  P15 resume point = first incomplete step (users_roles)
+
+ PASS  P17 no certificate for an unverified domain  -> new row for relation "custom_domain" violates check constraint "custom_domain_check2"
+
+ PASS  P21 dry run can never write data  -> new row for relation "import_job" violates check constraint "import_job_check1"
+
+ PASS  P21 real import without a dry run rejected  -> new row for relation "import_job" violates check constraint "import_job_check"
+
+ PASS  P21 real import after dry run accepted
+
+ PASS  P20 device/import/setting changes are in the audit chain
+
+ PASS  P20 audit chain intact
+
+--- print templates: platform -> partner -> shop
+ PASS  partner creates default print templates for its shops
+
+ PASS  partner cannot see a shop's own templates (shop data)
+
+ PASS  partner cannot write a shop's template  -> new row violates row-level security policy for table "print_template"
+
+ PASS  partner cannot write platform templates  -> new row violates row-level security policy for table "print_template"
+
+ PASS  shop override wins for invoice
+
+ PASS  shop with no active receipt gets its partner's default
+
+ PASS  no shop/partner estimate -> platform default
+
+ PASS  shop cannot edit partner/platform templates
+
+ PASS  direct shop (no partner) gets platform defaults, never partner templates
+
+ PASS  partner previews its own default
+
+--- P3 reseller sees branding + billing only, never shop data (even with app.tenant_id also set)
+psql:tests/run_tests.sql:514: NOTICE:  PASS  P3 partner session sees 0 rows in all 88 shop tables (sales, inventory, customers, accounts, audit, ...)
+ PASS  P3 explicit: invoices, customers, tags, vouchers hidden
+
+ PASS  P3 partner cannot write shop data  -> new row violates row-level security policy "no_partner_access" for table "metal"
+
+ PASS  P3 partner sees billing of its own shop only (not tenant2)
+
+ PASS  P3 partner still manages its shops' branding
+
+ PASS  shop session (no partner) still sees its invoices
+
+ PASS  P23 app_rw cannot read platform operator accounts  -> permission denied for table platform_admin
+
+--- v1.4 platform schema requests
+ PASS  R2 app_rw without context cannot read platform.tenant
+
+ PASS  R2 resolve_tenant(slug) returns id/status/partner pre-login
+
+ PASS  R2 unknown slug -> no row
+
+ PASS  R2 returns only tenant_id, status, partner_id (no PII)
+
+ PASS  R2 SECURITY DEFINER with fixed search_path
+
+ PASS  R3 partner session token must be a 32-byte hash  -> new row for relation "partner_session" violates check constraint "partner_session_token_hash_check"
+
+ PASS  R3 cannot create a user for another partner  -> new row violates row-level security policy for table "partner_user"
+
+ PASS  R3 other partner sees no users/sessions
+
+ PASS  R3 shop session sees no partner users
+
+ PASS  R4 app_rw cannot read platform admin sessions  -> permission denied for table platform_admin_session
+
+ PASS  R5 shop updates its own default_language
+
+ PASS  R5 new language visible
+
+ PASS  R5 cannot touch another tenant's language
+
+ PASS  R5 other tenant columns not updatable  -> permission denied for table tenant
+
+ PASS  R5 partner context cannot change a shop's language
+
+ PASS  R6 app_rw cannot provision tenants  -> permission denied for function provision_tenant
+
+ PASS  R7 import_row_error stores row_no/column/code/message/raw
+
+ PASS  R7 error row must belong to an import job  -> insert or update on table "import_row_error" violates foreign key constraint "import_row_error_tenant_id_import_job_id_fkey"
+
+ PASS  R8 otp_challenge rejects a plaintext code  -> new row for relation "otp_challenge" violates check constraint "otp_challenge_code_hash_check"
+
+ PASS  R8 otp_delivery rejects a bare code  -> new row for relation "otp_delivery" violates check constraint "otp_delivery_ciphertext_check"
+
+ PASS  R8 otp_delivery rejects a readable message  -> new row for relation "otp_delivery" violates check constraint "otp_delivery_ciphertext_check1"
+
+ PASS  R8 otp_delivery expiry capped at 10 min  -> new row for relation "otp_delivery" violates check constraint "otp_delivery_check"
+
+ PASS  R8 API cannot read back delivery ciphertext  -> permission denied for table otp_delivery
+
+ PASS  R8 catalog: no column can hold a plaintext OTP
+
+ PASS  R9 partner+tenant context sees no shop print templates
+
+ PASS  R9 partner+tenant context cannot write shop templates  -> new row violates row-level security policy "partner_no_tenant_templates" for table "print_template"
+
+ PASS  R10 partner directory lists only its own shop with plan + subscription status
+
+ PASS  R10 directory exposes no other columns
+
+ PASS  R10 partner cannot read platform.tenant directly
+
+ PASS  R10 another partner sees none of these shops
+
+ PASS  R10 shop session gets an empty directory
+
+ PASS  R11 mapping profile name unique per kind  -> duplicate key value violates unique constraint "import_mapping_profile_tenant_id_kind_name_key"
+
+ PASS  R11 trigger increments version on update
+
+ PASS  R11 stale version updates 0 rows (app reports conflict)
+
+ PASS  R11 client cannot set version  -> version is maintained by the database (optimistic concurrency)
+
+ PASS  R11 version trigger on all 14 editable platform/branding tables
+
+ PASS  R11 branch.bill_series_prefix stored
+
+ PASS  R11 bill_series_prefix format enforced  -> new row for relation "branch" violates check constraint "branch_bill_series_prefix_check"
+
+ALL APP_RW TESTS DONE
+--- owner-level bypass attempts (app_migrator)
+PASS  owner DELETE invoice blocked  -> DELETE on sales.invoice is not allowed (append-only / INV-3/INV-4)
+PASS  owner TRUNCATE invoice blocked  -> TRUNCATE on sales.invoice is not allowed (append-only / INV-3/INV-4)
+PASS  owner UPDATE invoice blocked  -> UPDATE on sales.invoice requires the sales module role (INV-2/INV-4)
+PASS  owner cannot add lines  -> INSERT on sales.invoice_line is not allowed (INV-2/INV-4)
+PASS  owner cannot rewind series  -> series counter may only advance by 1 (INV-1)
+PASS  owner cannot delete series  -> DELETE on sales.doc_series is not allowed (append-only / INV-3/INV-4)
+PASS  owner DELETE audit blocked  -> DELETE on platform.audit_event is not allowed (append-only / INV-3/INV-4)
+PASS  owner UPDATE audit blocked  -> UPDATE on platform.audit_event is not allowed (append-only / INV-3/INV-4)
+PASS  N8 duplicate (tenant, ref_type, ref_id, alert_type) alert rejected  -> duplicate key value violates unique constraint "outbox_alert_uq"
+--- pg-boss worker (app_worker)
+PASS  worker can CREATE/DROP tables in schema pgboss
+PASS  worker cannot DDL in notifications  -> permission denied for schema notifications
+PASS  worker cannot DDL in public  -> permission denied for schema public
+PASS  worker cannot move objects out of pgboss  -> permission denied for schema notifications
+PASS  worker claims outbox rows across tenants (no tenant set)
+PASS  worker marks rows sent
+PASS  worker cannot alter alert payload  -> permission denied for table outbox
+PASS  worker cannot alter topic  -> permission denied for table outbox
+PASS  worker cannot insert (fabricate) cancellation alerts  -> permission denied for table outbox
+PASS  worker cannot delete alerts  -> permission denied for table outbox
+PASS  worker cannot read sales tables  -> permission denied for table invoice
+PASS  worker cannot touch sales tables  -> permission denied for table invoice
+PASS  worker cannot read inventory  -> permission denied for schema inventory
+PASS  retention job deletes only idempotency keys older than 24h
+PASS  R8 worker reads pending OTP deliveries across tenants
+PASS  R8 worker cannot update OTP deliveries  -> permission denied for table otp_delivery
+PASS  R8 worker cannot insert OTP deliveries  -> permission denied for table otp_delivery
+PASS  R8 worker deletes the row after sending
+PASS  R8 worker cannot read OTP hashes  -> permission denied for table otp_challenge
+PASS  worker cannot ALTER outbox table
+--- (c) schema-change guard
+PASS  (c) superuser DDL in sales schema blocked -> ERROR:  schema change (CREATE TABLE) on sales.shadow_invoice by postgres blocked: only app_migrator may change module schemas
+CONTEXT:  PL/pgSQL function guard_ddl() line 12 at RAISE
+PASS  (c) superuser DROP of gap report blocked
+PASS  (c) superuser cannot disable invoice trigger
+PASS  (c) migration DDL logged (673 entries in schema_change_log)
+--- P23 platform admin console (app_admin)
+CREATE FUNCTION
+PASS  P23 admin lists all shops
+PASS  P23 admin sees every shop subscription/usage
+UPDATE 1
+PASS  P23 admin can suspend a shop
+UPDATE 1
+NOTICE:  PASS  P23 admin cannot read shop sales (permission denied)
+DO
+NOTICE:  PASS  P23 admin cannot read shop customers
+DO
+INSERT 0 1
+PASS  R4 admin console creates a hashed-token session
+NOTICE:  PASS  R4 admin session token must be a 32-byte hash
+DO
+PASS  R6 provision_tenant runs in one call
+PASS  R6 tenant created as trial with language
+NOTICE:  PASS  R6 failing step aborts the whole provisioning (value for domain platform.gstin violates check constraint "gstin_check")
+DO
+PASS  R6 no half-provisioned tenant left behind
+PASS  R6 caller tenant context restored
+PASS  R6 provisioned company, branch (prefix MDU), 4 roles, owner, 10 pending onboarding steps; settings inherit defaults
+--- concurrency: 30 parallel invoice issues from separate connections
+PASS  30 parallel issuers: 33 invoices, numbers 1..33, gaps=0
+--- app_ro: can SELECT every table in every module schema, cannot write
+NOTICE:  PASS  app_ro can SELECT all 110 tables/views (incl. every masters table)
+NOTICE:  PASS  app_ro INSERT correctly denied (permission denied for table customer_group)
+DO
+SUMMARY: 256 passed, 0 failed — 2026-10-24 09:44 IST — PostgreSQL 17.11 (Debian 17.11-0+deb13u1)

@@ -1,0 +1,33 @@
+{
+  "name": "@jw/api",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests --dir src",
+    "start": "node dist/main.js",
+    "migrate": "node dist/migrate.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "9",
+    "@fastify/multipart": "8",
+    "@jw/db": "workspace:^",
+    "@jw/mod-platform": "workspace:^",
+    "@jw/money": "workspace:^",
+    "@nestjs/common": "10",
+    "@nestjs/core": "10",
+    "@nestjs/platform-fastify": "10",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "@jw/mod-masters": "workspace:^",
+    "@jw/mod-rates": "workspace:^",
+    "@jw/mod-inventory": "workspace:^",
+    "@jw/mod-sales": "workspace:^",
+    "@jw/mod-orders": "workspace:^"
+  }
+}

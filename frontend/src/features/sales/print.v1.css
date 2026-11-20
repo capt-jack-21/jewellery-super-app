@@ -1,0 +1,18 @@
+/* Sales documents (0.9.1): render data from the server, printed in the browser; paper size per document (A4 / A5 / 80 mm roll). */
+@page sales-a4 { size: 210mm 297mm; margin: 10mm; }
+@page sales-a5 { size: 148mm 210mm; margin: 8mm; }
+@page sales-thermal { size: 80mm 297mm; margin: 2mm; }
+.sales-doc[data-paper='A4'] { max-width: 210mm; page: sales-a4; }
+.sales-doc[data-paper='A5'] { max-width: 148mm; page: sales-a5; }
+.sales-doc[data-paper='thermal_80mm'] { max-width: 76mm; page: sales-thermal; font-size: 11px; }
+@media print {
+  body:has(.sales-doc) aside, body:has(.sales-doc) [data-sales-screen] { display: none !important; }
+  .sales-doc { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Override the global print header hide: mandatory frozen seller particulars MUST print. */
+@media print {
+  .sales-doc header { display: flex !important; }
+  .sales-doc[data-paper='thermal_80mm'] header,
+  .sales-doc[data-template-renderer='receipt-v1'] header { display: block !important; }
+}

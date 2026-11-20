@@ -1,0 +1,24 @@
+{
+  "name": "@jw/mod-inventory",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests --dir src"
+  },
+  "dependencies": {
+    "@jw/db": "workspace:*",
+    "@jw/money": "workspace:*",
+    "@jw/mod-platform": "workspace:^",
+    "@nestjs/common": "10",
+    "reflect-metadata": "^0.2.2",
+    "zod": "3"
+  }
+}

@@ -1,0 +1,602 @@
+openapi: 3.1.0
+info:
+  title: Platform module extension (FRONTEND DRAFT for backend review)
+  version: 0.1.0-draft
+  description: |
+    Endpoints the frozen Platform scope (P1-P23) needs that /workspace/backend/contracts/openapi.yaml (M1) does not have yet.
+    Written by the frontend so screens can be built against Orval + MSW. Same conventions as the backend contract:
+    snake_case, money as 2 dp decimal strings, httpOnly cookie session, RFC 9457 problem+json, servers /api.
+    Hand to the backend owner; once merged into the backend contract this file is deleted.
+servers:
+  - url: /api
+security:
+  - session: []
+tags:
+  - { name: meta }
+  - { name: me }
+  - { name: shop }
+  - { name: branches }
+  - { name: devices }
+  - { name: users }
+  - { name: branding }
+  - { name: domains }
+  - { name: print }
+  - { name: audit }
+  - { name: import }
+  - { name: partner, description: 'Reseller console: registry, branding and billing only (P3: no sales data)' }
+  - { name: admin, description: Platform admin console }
+paths:
+  /v1/platform/meta:
+    get:
+      tags: [meta]
+      operationId: getMeta
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Meta' } } } }
+  /v1/platform/branding/resolve:
+    get:
+      tags: [branding]
+      operationId: resolveBranding
+      security: []
+      parameters: [{ name: host, in: query, schema: { type: string } }]
+      responses:
+        '200': { description: 'Layers, highest precedence first (tenant, partner, platform)', content: { application/json: { schema: { $ref: '#/components/schemas/BrandingResolved' } } } }
+  /v1/platform/me:
+    get:
+      tags: [me]
+      operationId: getMe
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+  /v1/platform/me/preferences:
+    put:
+      tags: [me]
+      operationId: putMyPreferences
+      summary: Per-user language override (null = follow shop default)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UserPreferences' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserPreferences' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/shop-profile:
+    get:
+      tags: [shop]
+      operationId: getShopProfile
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ShopProfile' } } } }
+    put:
+      tags: [shop]
+      operationId: putShopProfile
+      parameters: [{ name: If-Match, in: header, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ShopProfile' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ShopProfile' } } } }
+        '412': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/branches:
+    get:
+      tags: [branches]
+      operationId: listBranches
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Branch' } } } } }
+    post:
+      tags: [branches]
+      operationId: createBranch
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BranchInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Branch' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/branches/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [branches]
+      operationId: updateBranch
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BranchInput' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Branch' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/devices:
+    get:
+      tags: [devices]
+      operationId: listDevices
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Device' } } } } }
+    post:
+      tags: [devices]
+      operationId: registerDevice
+      summary: Request registration of this browser as a billing counter (pending until an owner/manager approves)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/DeviceInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
+  /v1/platform/devices/current:
+    get:
+      tags: [devices]
+      operationId: getCurrentDevice
+      summary: Registration of the calling browser (device cookie), 404 if unregistered
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /v1/platform/devices/{id}/approval:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [devices]
+      operationId: approveDevice
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
+  /v1/platform/devices/{id}/revocation:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [devices]
+      operationId: revokeDevice
+      summary: Revoke a lost device; its sessions are logged out
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Device' } } } }
+  /v1/platform/roles:
+    get:
+      tags: [users]
+      operationId: listRoles
+      summary: Preset roles and their permissions (read-only; custom roles are P6 Later)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Role' } } } } }
+  /v1/platform/users:
+    get:
+      tags: [users]
+      operationId: listUsers
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+    post:
+      tags: [users]
+      operationId: createUser
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UserInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/users/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      tags: [users]
+      operationId: updateUser
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UserPatch' } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+  /v1/platform/branding/profile:
+    get:
+      tags: [branding]
+      operationId: getBrandingProfile
+      summary: Editable branding of the caller's scope (tenant, or partner in the reseller console)
+      parameters: [{ $ref: '#/components/parameters/Scope' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BrandingProfile' } } } }
+    put:
+      tags: [branding]
+      operationId: putBrandingProfile
+      parameters: [{ $ref: '#/components/parameters/Scope' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BrandingProfile' } } } }
+      responses:
+        '200': { description: 'Published (server re-checks WCAG AA contrast; 422 contrast_failed otherwise)', content: { application/json: { schema: { $ref: '#/components/schemas/BrandingProfile' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/domains:
+    get:
+      tags: [domains]
+      operationId: listDomains
+      parameters: [{ $ref: '#/components/parameters/Scope' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Domain' } } } } }
+    post:
+      tags: [domains]
+      operationId: addDomain
+      parameters: [{ $ref: '#/components/parameters/Scope' }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [hostname], additionalProperties: false, properties: { hostname: { type: string, maxLength: 253 } } } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Domain' } } } }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/domains/{id}/verification:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [domains]
+      operationId: verifyDomain
+      summary: Check DNS; on success HTTPS certificate is issued automatically
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Domain' } } } }
+  /v1/platform/print-templates:
+    get:
+      tags: [print]
+      operationId: listPrintTemplates
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PrintTemplate' } } } } }
+    post:
+      tags: [print]
+      operationId: createPrintTemplate
+      summary: New draft version from a base layout
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PrintTemplateInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/PrintTemplate' } } } }
+  /v1/platform/print-templates/{id}/publication:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [print]
+      operationId: publishPrintTemplate
+      summary: Publish a draft (server lints mandatory GST fields; 422 template_lint_failed with errors)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PrintTemplate' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/audit-events:
+    get:
+      tags: [audit]
+      operationId: listAuditEvents
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: action, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuditPage' } } } }
+  /v1/platform/import/templates:
+    get:
+      tags: [import]
+      operationId: listImportTemplates
+      summary: Generic CSV/Excel templates per entity (column definitions)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ImportTemplate' } } } } }
+  /v1/platform/import/profiles:
+    get:
+      tags: [import]
+      operationId: listImportProfiles
+      summary: Mapping profiles (generic built-ins now; per-customer/per-source-app profiles added later as data)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/MappingProfile' } } } } }
+  /v1/platform/import/jobs:
+    post:
+      tags: [import]
+      operationId: createImportJob
+      summary: Validate mapped rows (dry_run true = nothing written)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ImportJobInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ImportJob' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/platform/import/jobs/{id}/commit:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [import]
+      operationId: commitImportJob
+      summary: Commit a clean dry run (all-or-nothing, audited)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ImportJob' } } } }
+        '409': { $ref: '#/components/responses/Problem' }
+  /v1/partner/tenants:
+    get:
+      tags: [partner]
+      operationId: listPartnerTenants
+      responses:
+        '200': { description: 'Registry only: no sales, stock or customer data', content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PartnerTenant' } } } } }
+  /v1/partner/billing:
+    get:
+      tags: [partner]
+      operationId: getPartnerBilling
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PartnerBilling' } } } }
+  /v1/admin/tenants:
+    get:
+      tags: [admin]
+      operationId: listAdminTenants
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AdminTenant' } } } } }
+    post:
+      tags: [admin]
+      operationId: createAdminTenant
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminTenantInput' } } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/AdminTenant' } } } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /v1/admin/tenants/{id}/status:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [admin]
+      operationId: setAdminTenantStatus
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status, reason], additionalProperties: false, properties: { status: { enum: [active, suspended] }, reason: { type: string, minLength: 5 } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AdminTenant' } } } }
+  /v1/admin/partners:
+    get:
+      tags: [admin]
+      operationId: listAdminPartners
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Partner' } } } } }
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: sid }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Scope: { name: scope, in: query, schema: { enum: [tenant, partner] } }
+  responses:
+    Problem: { description: Problem, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+  schemas:
+    Money: { type: string, pattern: '^-?[0-9]{1,12}\.[0-9]{2}$' }
+    Uuid: { type: string, format: uuid }
+    Locale: { enum: [en-IN, ta-IN] }
+    Numerals: { enum: [latn, taml] }
+    PrintLocale:
+      description: Per-print language. bi-xx-IN = bilingual, English + that language. Identifiers (GSTIN, HUID, doc numbers, phone, barcodes) always print in Latin digits.
+      enum: [en-IN, ta-IN, hi-IN, te-IN, kn-IN, ml-IN, bi-ta-IN, bi-hi-IN, bi-te-IN, bi-kn-IN, bi-ml-IN]
+    PrintNumerals:
+      description: latn, or the native digits of the print language (server rejects a mismatch, e.g. hi-IN + taml).
+      enum: [latn, taml, deva, telu, knda, mlym]
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string }
+        errors: { type: array, items: { type: object, required: [path, message], properties: { path: { type: string }, message: { type: string } } } }
+    Meta:
+      type: object
+      required: [api_version, min_client_version, deployment_mode]
+      properties:
+        api_version: { type: string }
+        min_client_version: { type: string }
+        deployment_mode: { enum: [shared, dedicated, on_prem] }
+    ThemeLayer:
+      type: object
+      required: [scope]
+      properties:
+        scope: { enum: [tenant, partner, platform] }
+        app_name: { type: [string, 'null'] }
+        logo_url: { type: [string, 'null'] }
+        colors: { type: object, additionalProperties: { type: string } }
+        radius_px: { type: integer }
+        login_text: { type: object, additionalProperties: { type: object, additionalProperties: { type: string } } }
+        support_contact: { type: object, additionalProperties: { type: string } }
+    BrandingResolved:
+      type: object
+      required: [version, layers]
+      properties:
+        version: { type: string }
+        layers: { type: array, items: { $ref: '#/components/schemas/ThemeLayer' } }
+    RoleCode: { enum: [owner, manager, salesperson, cashier, partner_admin, platform_admin] }
+    Me:
+      type: object
+      required: [user_id, name, role, permissions, surface, branch_ids]
+      properties:
+        user_id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/RoleCode' }
+        permissions: { type: array, items: { type: string } }
+        surface: { enum: [tenant, partner, platform] }
+        tenant_id: { $ref: '#/components/schemas/Uuid' }
+        partner_id: { $ref: '#/components/schemas/Uuid' }
+        branch_ids: { type: array, items: { $ref: '#/components/schemas/Uuid' } }
+        locale_override: { oneOf: [{ $ref: '#/components/schemas/Locale' }, { type: 'null' }] }
+    UserPreferences:
+      type: object
+      additionalProperties: false
+      required: [locale_override]
+      properties:
+        locale_override: { oneOf: [{ $ref: '#/components/schemas/Locale' }, { type: 'null' }], description: 'UI language; null = shop default. Numerals are chosen per print, not per user.' }
+    Address:
+      type: object
+      properties: { line1: { type: string }, line2: { type: string }, city: { type: string }, pin: { type: string, pattern: '^[0-9]{6}$' } }
+    ShopProfile:
+      type: object
+      required: [legal_name, state_code]
+      properties:
+        legal_name: { type: string, maxLength: 200 }
+        trade_name: { type: string }
+        gstin: { type: string, pattern: '^[0-9]{2}[A-Z0-9]{13}$' }
+        pan: { type: string, pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$' }
+        state_code: { type: string, pattern: '^[0-9]{2}$' }
+        address: { $ref: '#/components/schemas/Address' }
+        phone: { type: string }
+        email: { type: string }
+        idle_timeout_minutes: { type: integer, minimum: 5, maximum: 480, description: P11 session timeout }
+        pan_required_above: { $ref: '#/components/schemas/Money' }
+        version: { type: string, readOnly: true }
+    BranchInput:
+      type: object
+      additionalProperties: false
+      required: [code, name, state_code, bill_series_prefix]
+      properties:
+        code: { type: string, maxLength: 10 }
+        name: { type: string }
+        address: { $ref: '#/components/schemas/Address' }
+        state_code: { type: string, pattern: '^[0-9]{2}$' }
+        gstin: { type: [string, 'null'], description: 'Optional; defaults to shop GSTIN; required when state_code differs from the shop (422 branch_gstin_required)' }
+        bill_series_prefix: { type: string, maxLength: 8 }
+        active: { type: boolean }
+    Branch:
+      allOf: [{ $ref: '#/components/schemas/BranchInput' }, { type: object, required: [id, effective_gstin, active], properties: { id: { $ref: '#/components/schemas/Uuid' }, effective_gstin: { type: string } } }]
+    DeviceInput:
+      type: object
+      additionalProperties: false
+      required: [name, branch_id]
+      properties: { name: { type: string, maxLength: 60 }, branch_id: { $ref: '#/components/schemas/Uuid' } }
+    Device:
+      type: object
+      required: [id, name, branch_id, status, requested_at]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        branch_id: { $ref: '#/components/schemas/Uuid' }
+        status: { enum: [pending, approved, revoked] }
+        requested_at: { type: string, format: date-time }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+        user_agent: { type: string }
+    Permission:
+      type: object
+      required: [code, sensitive]
+      properties: { code: { type: string }, sensitive: { type: boolean, description: P7 sensitive action } }
+    Role:
+      type: object
+      required: [code, permissions]
+      properties:
+        code: { $ref: '#/components/schemas/RoleCode' }
+        permissions: { type: array, items: { $ref: '#/components/schemas/Permission' } }
+    UserInput:
+      type: object
+      additionalProperties: false
+      required: [name, login, role, branch_ids]
+      properties:
+        name: { type: string }
+        login: { type: string, description: username or 10-digit mobile }
+        role: { enum: [owner, manager, salesperson, cashier] }
+        branch_ids: { type: array, items: { $ref: '#/components/schemas/Uuid' } }
+        otp_required: { type: boolean }
+    UserPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        role: { enum: [owner, manager, salesperson, cashier] }
+        branch_ids: { type: array, items: { $ref: '#/components/schemas/Uuid' } }
+        active: { type: boolean }
+        otp_required: { type: boolean }
+    User:
+      allOf: [{ $ref: '#/components/schemas/UserInput' }, { type: object, required: [id, active], properties: { id: { $ref: '#/components/schemas/Uuid' }, active: { type: boolean }, last_login_at: { type: [string, 'null'], format: date-time } } }]
+    BrandingProfile:
+      type: object
+      required: [app_name, colors]
+      properties:
+        app_name: { type: string }
+        logo_url: { type: [string, 'null'] }
+        icon_url: { type: [string, 'null'] }
+        colors: { type: object, additionalProperties: { type: string } }
+        radius_px: { type: integer }
+        version: { type: string, readOnly: true }
+        published_at: { type: [string, 'null'], format: date-time, readOnly: true }
+    Domain:
+      type: object
+      required: [id, hostname, status, cname_target, txt_name, txt_value]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        hostname: { type: string }
+        status: { enum: [pending_dns, verified, failed] }
+        cert_status: { enum: [none, issuing, active, error] }
+        cname_target: { type: string }
+        txt_name: { type: string }
+        txt_value: { type: string }
+        failure_reason: { type: [string, 'null'] }
+    PrintTemplateInput:
+      type: object
+      additionalProperties: false
+      required: [kind, format, locale, numerals]
+      properties:
+        kind: { enum: [tax_invoice, estimate, receipt, credit_note] }
+        format: { enum: [a4, a5, thermal_80] }
+        locale: { $ref: '#/components/schemas/PrintLocale' }
+        numerals: { $ref: '#/components/schemas/PrintNumerals' }
+        show_logo: { type: boolean }
+        footer_text: { type: string, maxLength: 300 }
+    PrintTemplate:
+      allOf: [{ $ref: '#/components/schemas/PrintTemplateInput' }, { type: object, required: [id, version, status], properties: { id: { $ref: '#/components/schemas/Uuid' }, version: { type: integer }, status: { enum: [draft, published, retired] }, lint_errors: { type: array, items: { type: string } } } }]
+    AuditEvent:
+      type: object
+      required: [seq, at, actor, action, entity]
+      properties:
+        seq: { type: integer }
+        at: { type: string, format: date-time }
+        actor: { type: string }
+        action: { type: string }
+        entity: { type: string }
+        entity_ref: { type: string }
+        branch: { type: [string, 'null'] }
+        ip: { type: string }
+        summary: { type: string }
+    AuditPage:
+      type: object
+      required: [items, chain_verified]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
+        next_cursor: { type: [string, 'null'] }
+        chain_verified: { type: boolean, description: Result of audit_verify() on the tenant hash chain }
+    ImportEntity: { enum: [customers, stock_tags, opening_balances] }
+    ImportTemplate:
+      type: object
+      required: [entity, columns]
+      properties:
+        entity: { $ref: '#/components/schemas/ImportEntity' }
+        columns: { type: array, items: { type: object, required: [key, required], properties: { key: { type: string }, required: { type: boolean }, format: { type: string } } } }
+    MappingProfile:
+      type: object
+      required: [id, name, entity, column_map, builtin]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        entity: { $ref: '#/components/schemas/ImportEntity' }
+        source_app: { type: [string, 'null'] }
+        column_map: { type: object, additionalProperties: { type: string }, description: target key -> source header }
+        builtin: { type: boolean }
+    ImportJobInput:
+      type: object
+      additionalProperties: false
+      required: [entity, profile_id, file_name, rows, dry_run]
+      properties:
+        entity: { $ref: '#/components/schemas/ImportEntity' }
+        profile_id: { type: string }
+        file_name: { type: string }
+        rows: { type: array, maxItems: 20000, items: { type: object, additionalProperties: { type: string } } }
+        dry_run: { type: boolean }
+    ImportJob:
+      type: object
+      required: [id, entity, status, total_rows, valid_rows, errors]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        entity: { $ref: '#/components/schemas/ImportEntity' }
+        status: { enum: [dry_run_ok, dry_run_failed, committed] }
+        total_rows: { type: integer }
+        valid_rows: { type: integer }
+        errors: { type: array, items: { type: object, required: [row, column, code], properties: { row: { type: integer }, column: { type: string }, code: { type: string } } } }
+    PartnerTenant:
+      type: object
+      required: [id, name, plan, status, created_at]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        plan: { type: string }
+        status: { enum: [trial, active, suspended] }
+        domain: { type: [string, 'null'] }
+        branches: { type: integer }
+        users: { type: integer }
+        created_at: { type: string, format: date-time }
+    PartnerBilling:
+      type: object
+      required: [statements]
+      properties:
+        statements:
+          type: array
+          items:
+            type: object
+            required: [period, tenants, wholesale, white_label_fee, total, status]
+            properties:
+              period: { type: string, examples: ['2026-09'] }
+              tenants: { type: integer }
+              wholesale: { $ref: '#/components/schemas/Money' }
+              white_label_fee: { $ref: '#/components/schemas/Money' }
+              total: { $ref: '#/components/schemas/Money' }
+              status: { enum: [open, invoiced, paid, overdue] }
+    Partner:
+      type: object
+      required: [id, name, tenants, status]
+      properties: { id: { $ref: '#/components/schemas/Uuid' }, name: { type: string }, tenants: { type: integer }, status: { enum: [active, suspended] } }
+    AdminTenantInput:
+      type: object
+      additionalProperties: false
+      required: [name, owner_login, plan]
+      properties:
+        name: { type: string }
+        owner_login: { type: string }
+        plan: { enum: [trial, standard, pro] }
+        partner_id: { type: [string, 'null'], format: uuid }
+    AdminTenant:
+      type: object
+      required: [id, name, plan, status, created_at, usage]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        partner: { type: [string, 'null'] }
+        plan: { type: string }
+        status: { enum: [trial, active, suspended] }
+        created_at: { type: string, format: date-time }
+        usage: { type: object, required: [users, branches, invoices_30d, storage_mb], properties: { users: { type: integer }, branches: { type: integer }, invoices_30d: { type: integer }, storage_mb: { type: integer } } }

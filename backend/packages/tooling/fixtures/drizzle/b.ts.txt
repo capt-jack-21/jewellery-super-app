@@ -1,0 +1,46 @@
+import { pgTable, pgSchema, text, uuid, foreignKey, pgPolicy, check, primaryKey } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
+
+export const platform = pgSchema("platform");
+export const sales = pgSchema("sales");
+
+export const profileInPlatform = platform.table("profile", {
+	tenantId: uuid("tenant_id").notNull(),
+	id: uuid().notNull(),
+	kind: text().notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.tenantId, table.id], name: "profile_pkey"}),
+]);
+
+export const jobInPlatform = platform.table("job", {
+	tenantId: uuid("tenant_id").notNull(),
+	id: uuid().notNull(),
+	kind: text().notNull(),
+	mappingProfileId: uuid("mapping_profile_id"),
+}, (table) => [
+	check("job_kind_check", sql`kind <> ''`),
+	pgPolicy("tenant_isolation", { as: "permissive", for: "all", to: ["public"] }),
+	foreignKey({
+			columns: [table.kind, table.mappingProfileId, table.tenantId],
+			foreignColumns: [profileInPlatform.tenantId, profileInPlatform.id, profileInPlatform.kind],
+			name: "job_mapping_profile_fk"
+		}),
+	pgPolicy("no_partner_access", { as: "restrictive", for: "all", to: ["public"], using: sql`(platform.current_partner() IS NULL)`, withCheck: sql`true`  }),
+	foreignKey({
+			columns: [table.tenantId],
+			foreignColumns: [profileInPlatform.tenantId],
+			name: "idempotency_key_tenant_id_fkey"
+		}),
+]);
+
+export const idempotencyKeyInSales = sales.table("idempotency_key", {
+	tenantId: uuid("tenant_id").notNull(),
+	jobId: uuid("job_id").notNull(),
+}, (table) => [
+	foreignKey({
+			columns: [table.tenantId, table.jobId],
+			foreignColumns: [jobInPlatform.tenantId, jobInPlatform.id],
+			name: "idempotency_key_tenant_id_fkey"
+		}),
+	index("idempotency_key_job_idx").using("btree", table.tenantId.asc().nullsLast().op("uuid_ops"), table.jobId.asc().nullsLast().op("uuid_ops")),
+]);

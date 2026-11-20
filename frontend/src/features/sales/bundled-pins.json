@@ -1,0 +1,26 @@
+[
+  {
+    "id": "01a1c455-29fa-769b-84f9-377a9bcdab46",
+    "body_key": "tpl/platform/invoice.hbs",
+    "version": 1,
+    "doc_type": "invoice"
+  },
+  {
+    "id": "01a1c455-29fa-7963-88e9-d3cf6e2a8240",
+    "body_key": "tpl/platform/estimate.hbs",
+    "version": 1,
+    "doc_type": "estimate"
+  },
+  {
+    "id": "01a1c455-29fa-7856-b4ed-a3710fd91ec1",
+    "body_key": "tpl/platform/credit_note.hbs",
+    "version": 1,
+    "doc_type": "credit_note"
+  },
+  {
+    "id": "01a1c455-29fa-7811-b4b1-95efbd5b9ea5",
+    "body_key": "tpl/platform/receipt.hbs",
+    "version": 1,
+    "doc_type": "receipt"
+  }
+]
